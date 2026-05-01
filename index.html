@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="물주기">
+<meta name="theme-color" content="#22C55E">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>화분 물주기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans KR', -apple-system, sans-serif;
+  background: linear-gradient(180deg, #F8FAFC, #EFF3F8);
+  color: #1E293B;
+  min-height: 100vh;
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+}
+.container { max-width: 480px; margin: 0 auto; padding: 24px 16px 40px; }
+
+/* Widget */
+.widget {
+  border-radius: 24px; padding: 22px 20px; cursor: pointer;
+  user-select: none; position: relative; overflow: hidden;
+  transition: transform 0.15s;
+}
+.widget:active { transform: scale(0.98); }
+.widget-bg-ok { background: linear-gradient(145deg, #F0FDF4, #BBF7D0); border: 2px solid rgba(34,197,94,0.12); }
+.widget-bg-soon { background: linear-gradient(145deg, #FFFBEB, #FDE68A); border: 2px solid rgba(245,158,11,0.12); }
+.widget-bg-overdue { background: linear-gradient(145deg, #FEF2F2, #FECACA); border: 2px solid rgba(239,68,68,0.12); }
+.widget-deco { position: absolute; top: 8px; right: 14px; opacity: 0.12; font-size: 72px; line-height: 1; pointer-events: none; }
+.widget-inner { display: flex; align-items: center; gap: 18; }
+.ring-wrap { position: relative; width: 116px; height: 116px; flex-shrink: 0; }
+.ring-days { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-num { font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+.ring-label { font-size: 11px; font-weight: 600; opacity: 0.8; margin-top: 2px; }
+.widget-info { flex: 1; position: relative; z-index: 1; }
+.widget-sub { font-size: 11px; font-weight: 700; color: #64748B; letter-spacing: 0.8px; margin-bottom: 4px; }
+.widget-title { font-size: 20px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px; line-height: 1.3; }
+.widget-date { font-size: 12px; color: #64748B; margin-top: 8px; }
+.widget-hint {
+  margin-top: 10px; display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px; background: rgba(255,255,255,0.65);
+  font-size: 11px; font-weight: 600; color: #475569;
+}
+
+/* Settings btn */
+.settings-btn {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin-top: 20px;
+  background: white; border-radius: 14px; width: 100%; text-align: left;
+  border: 1px solid #F1F5F9; cursor: pointer; font-family: inherit;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.03); transition: transform 0.1s;
+}
+.settings-btn:active { transform: scale(0.98); }
+
+/* Notif btn */
+.notif-btn {
+  display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin-top: 10px;
+  background: #FEF3C7; border-radius: 14px; width: 100%; text-align: left;
+  border: none; cursor: pointer; font-family: inherit; transition: transform 0.1s;
+}
+.notif-btn:active { transform: scale(0.98); }
+
+/* Overlay + Modal */
+.overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+  backdrop-filter: blur(6px); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.2s;
+}
+.modal {
+  background: white; border-radius: 24px; padding: 32px 28px;
+  width: 88%; max-width: 340px; text-align: center;
+  animation: popIn 0.25s ease-out;
+}
+.modal-edit {
+  background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 420px;
+  padding: 28px 24px 32px; animation: slideUp 0.25s ease-out; text-align: left;
+}
+@media (min-width: 640px) { .modal-edit { border-radius: 24px; } }
+.overlay.bottom { align-items: flex-end; }
+@media (min-width: 640px) { .overlay.bottom { align-items: center; } }
+
+.btn-row { display: flex; gap: 10px; margin-top: 22px; }
+.btn-no {
+  flex: 1; padding: 13px; border-radius: 14px; border: 1.5px solid #E2E8F0;
+  background: white; font-size: 15px; font-weight: 600; color: #64748B;
+  cursor: pointer; font-family: inherit;
+}
+.btn-yes {
+  flex: 1; padding: 13px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #22C55E, #16A34A); color: white;
+  font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+  box-shadow: 0 4px 12px rgba(34,197,94,0.3);
+}
+.input-field {
+  width: 100%; padding: 11px 14px; border: 1.5px solid #E2E8F0; border-radius: 12px;
+  font-size: 14px; outline: none; background: #F8FAFC; font-family: inherit;
+  transition: border-color 0.2s;
+}
+.input-field:focus { border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); background: white; }
+.btn-save {
+  width: 100%; padding: 14px; border-radius: 14px; font-size: 15px; margin-top: 16px; border: none;
+  background: linear-gradient(135deg, #3B82F6, #2563EB); color: white; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.25); cursor: pointer; font-family: inherit;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="container" id="app"></div>
+
+<script>
+const CYCLE_UNITS = { '일': 1, '주': 7, '개월': 30, '년': 365 };
+const DEFAULT_CYCLE = 15;
+const DEFAULT_UNIT = '일';
+const STORAGE_KEY = 'plant-water-data';
+
+// ── Helpers ──
+function todayStr() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+
+function getDaysRemaining(dateStr, cycleValue, cycleUnit) {
+  if (!dateStr || !cycleValue) return null;
+  const last = new Date(dateStr);
+  const unitDays = CYCLE_UNITS[cycleUnit] || 1;
+  const next = new Date(last.getTime() + cycleValue * unitDays * 86400000);
+  const today = new Date(); today.setHours(0,0,0,0); next.setHours(0,0,0,0);
+  return Math.ceil((next - today) / 86400000);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatNextDate(dateStr, cycleValue, cycleUnit) {
+  if (!dateStr || !cycleValue) return '—';
+  const last = new Date(dateStr);
+  const unitDays = CYCLE_UNITS[cycleUnit] || 1;
+  const next = new Date(last.getTime() + cycleValue * unitDays * 86400000);
+  return `${next.getFullYear()}.${String(next.getMonth()+1).padStart(2,'0')}.${String(next.getDate()).padStart(2,'0')}`;
+}
+
+function getStatus(days) {
+  if (days === null) return 'unknown';
+  if (days < 0) return 'overdue';
+  if (days <= 3) return 'soon';
+  return 'ok';
+}
+
+// ── Data ──
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { date: todayStr(), cycleValue: DEFAULT_CYCLE, cycleUnit: DEFAULT_UNIT };
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+// ── Notification scheduling ──
+function scheduleNotification(data) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const days = getDaysRemaining(data.date, data.cycleValue, data.cycleUnit);
+  if (days === null) return;
+
+  // Clear existing
+  if (window._notifTimer) clearTimeout(window._notifTimer);
+
+  if (days <= 0) {
+    // Already overdue — notify now
+    showNotification(days);
+  } else {
+    // Schedule for the due date at 9am
+    const last = new Date(data.date);
+    const unitDays = CYCLE_UNITS[data.cycleUnit] || 1;
+    const nextDate = new Date(last.getTime() + data.cycleValue * unitDays * 86400000);
+    nextDate.setHours(9, 0, 0, 0);
+    const ms = nextDate.getTime() - Date.now();
+    if (ms > 0 && ms < 2147483647) {
+      window._notifTimer = setTimeout(() => showNotification(0), ms);
+    }
+  }
+}
+
+function showNotification(days) {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification('🪴 화분 물주기', {
+        body: days < 0
+          ? `물 줄 때가 ${Math.abs(days)}일 지났어요!`
+          : '오늘 화분에 물을 줄 시간이에요!',
+        icon: 'icons/icon-192.png',
+        badge: 'icons/icon-192.png',
+        tag: 'plant-water',
+        renotify: true,
+        vibrate: [200, 100, 200]
+      });
+    });
+  } else if ('Notification' in window) {
+    new Notification('🪴 화분 물주기', {
+      body: days < 0
+        ? `물 줄 때가 ${Math.abs(days)}일 지났어요!`
+        : '오늘 화분에 물을 줄 시간이에요!',
+      icon: 'icons/icon-192.png'
+    });
+  }
+}
+
+// ── State ──
+let state = {
+  data: loadData(),
+  showConfirm: false,
+  showEdit: false,
+  editDate: '',
+  editCycleValue: 0,
+  editCycleUnit: '',
+  notifPerm: ('Notification' in window) ? Notification.permission : 'denied'
+};
+
+// ── Render ──
+function render() {
+  const { data } = state;
+  const days = getDaysRemaining(data.date, data.cycleValue, data.cycleUnit);
+  const status = getStatus(days);
+
+  const colors = {
+    ok: { ring: '#22C55E', bg: 'widget-bg-ok' },
+    soon: { ring: '#F59E0B', bg: 'widget-bg-soon' },
+    overdue: { ring: '#EF4444', bg: 'widget-bg-overdue' },
+    unknown: { ring: '#9CA3AF', bg: 'widget-bg-ok' }
+  }[status];
+
+  const titles = { ok: '아직 괜찮아요 🌱', soon: '곧 물 줘야 해요', overdue: '물 줄 때가 지났어요!' };
+  const total = data.cycleValue || 1;
+  const progress = days !== null ? Math.max(0, Math.min(1, days / total)) : 1;
+  const radius = 52, circ = 2 * Math.PI * radius, dash = circ * progress;
+
+  const dayDisplay = days !== null ? (days < 0 ? `+${Math.abs(days)}` : days) : '—';
+  const dayLabel = days !== null && days < 0 ? '일 초과' : '일 남음';
+
+  let html = `
+    <h1 style="font-size:24px;font-weight:800;letter-spacing:-1px;color:#0F172A;margin-bottom:20px">🪴 화분 물주기</h1>
+    
+    <div class="widget ${colors.bg}" onclick="openConfirm()">
+      <div class="widget-deco">🪴</div>
+      <div class="widget-inner">
+        <div class="ring-wrap">
+          <svg width="116" height="116" viewBox="0 0 116 116" style="transform:rotate(-90deg)">
+            <circle cx="58" cy="58" r="${radius}" fill="none" stroke="white" stroke-width="7" opacity="0.5"/>
+            <circle cx="58" cy="58" r="${radius}" fill="none" stroke="${colors.ring}" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="${dash} ${circ}" style="transition:stroke-dasharray 0.6s ease"/>
+          </svg>
+          <div class="ring-days">
+            <span class="ring-num" style="color:${colors.ring}">${dayDisplay}</span>
+            <span class="ring-label" style="color:${colors.ring}">${dayLabel}</span>
+          </div>
+        </div>
+        <div class="widget-info">
+          <p class="widget-sub">화분 물주기</p>
+          <p class="widget-title">${titles[status] || '—'}</p>
+          <p class="widget-date">최근: ${formatDate(data.date)}</p>
+          <p class="widget-date" style="margin-top:1px">다음: ${formatNextDate(data.date, data.cycleValue, data.cycleUnit)}</p>
+          <div class="widget-hint">👆 탭하여 물주기 완료</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="settings-btn" onclick="openEdit()">
+      <span style="font-size:16px">⚙️</span>
+      <div style="flex:1">
+        <span style="font-size:14px;font-weight:600;color:#334155">물주기 설정</span>
+        <span style="font-size:12px;color:#94A3B8;margin-left:8px">주기: ${data.cycleValue}${data.cycleUnit}</span>
+      </div>
+      <span style="font-size:13px;color:#CBD5E1">수정 →</span>
+    </button>`;
+
+  // Notification permission button
+  if (state.notifPerm !== 'granted' && 'Notification' in window) {
+    html += `
+    <button class="notif-btn" onclick="requestNotif()">
+      <span style="font-size:16px">🔔</span>
+      <div style="flex:1">
+        <span style="font-size:14px;font-weight:600;color:#92400E">알림 켜기</span>
+        <span style="font-size:12px;color:#A16207;margin-left:8px">물주기 날 알림을 받아요</span>
+      </div>
+    </button>`;
+  }
+
+  // Confirm modal
+  if (state.showConfirm) {
+    html += `
+    <div class="overlay" onclick="closeConfirm(event)">
+      <div class="modal">
+        <div style="font-size:48px;margin-bottom:10px">💧</div>
+        <h3 style="font-size:19px;font-weight:700;color:#0F172A;margin-bottom:6px">물을 주셨나요?</h3>
+        <p style="font-size:13px;color:#64748B;line-height:1.5">확인하면 다음 물주기가<br><strong>${data.cycleValue}${data.cycleUnit} 후</strong>로 설정됩니다</p>
+        <div class="btn-row">
+          <button class="btn-no" onclick="state.showConfirm=false;render()">아니오</button>
+          <button class="btn-yes" onclick="doWater()">예 💧</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Edit modal
+  if (state.showEdit) {
+    const unitOptions = Object.keys(CYCLE_UNITS).map(u =>
+      `<option value="${u}" ${u === state.editCycleUnit ? 'selected' : ''}>${u}</option>`
+    ).join('');
+
+    html += `
+    <div class="overlay bottom" onclick="closeEdit(event)">
+      <div class="modal-edit">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+          <h2 style="font-size:20px;font-weight:700">🪴 물주기 설정</h2>
+          <button onclick="state.showEdit=false;render()" style="background:#F1F5F9;border-radius:10px;width:36px;height:36px;font-size:16px;color:#64748B;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer">✕</button>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px">최근 물 준 날</label>
+          <input class="input-field" type="date" value="${state.editDate}" onchange="state.editDate=this.value"/>
+        </div>
+        <div style="margin-bottom:8px">
+          <label style="font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px">물주기 주기</label>
+          <div style="display:flex;gap:8px">
+            <input class="input-field" type="number" min="1" value="${state.editCycleValue}" onchange="state.editCycleValue=parseInt(this.value)||1" style="width:90px"/>
+            <select class="input-field" onchange="state.editCycleUnit=this.value" style="width:90px;cursor:pointer">${unitOptions}</select>
+          </div>
+        </div>
+        <button class="btn-save" onclick="doSave()">저장하기</button>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('app').innerHTML = html;
+}
+
+// ── Actions ──
+function openConfirm() { state.showConfirm = true; render(); }
+function closeConfirm(e) { if (e.target === e.currentTarget) { state.showConfirm = false; render(); } }
+
+function doWater() {
+  state.data.date = todayStr();
+  saveData(state.data);
+  scheduleNotification(state.data);
+  state.showConfirm = false;
+  render();
+}
+
+function openEdit() {
+  state.editDate = state.data.date;
+  state.editCycleValue = state.data.cycleValue;
+  state.editCycleUnit = state.data.cycleUnit;
+  state.showEdit = true;
+  render();
+}
+
+function closeEdit(e) { if (e.target === e.currentTarget) { state.showEdit = false; render(); } }
+
+function doSave() {
+  state.data.date = state.editDate;
+  state.data.cycleValue = state.editCycleValue;
+  state.data.cycleUnit = state.editCycleUnit;
+  saveData(state.data);
+  scheduleNotification(state.data);
+  state.showEdit = false;
+  render();
+}
+
+async function requestNotif() {
+  if ('Notification' in window) {
+    const perm = await Notification.requestPermission();
+    state.notifPerm = perm;
+    if (perm === 'granted') scheduleNotification(state.data);
+    render();
+  }
+}
+
+// ── Init ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+scheduleNotification(state.data);
+render();
+</script>
+</body>
+</html>
